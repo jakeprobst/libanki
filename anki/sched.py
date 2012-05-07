@@ -319,8 +319,6 @@ select id, due from cards where did = ? and queue = 0""", did)
                         self._newQueue.append(c)
 
                 self._newQueue = self._newQueue[:lim]
-                print nq
-                print self._newQueue
 
                 if self._newQueue:
                     self._newQueue.reverse()
