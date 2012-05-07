@@ -285,9 +285,14 @@ order by due""" % self._deckLimit(),
     ##########################################################################
 
     def _resetNewCount(self):
-        cntFn = lambda did, lim: self.col.db.scalar("""
-select count() from (select 1 from cards where
-did = ? and queue = 0 limit ?)""", did, lim)
+        def cntFn(did, lim):
+            count = 0
+            a = self.col.db.all("""select due from cards where did = ? and queue = 0""", did)
+            for c in a:
+                if c[0] < self.dayCutoff:
+                   count += 1
+            return min(count, lim)
+           
         self.newCount = self._walkingCount(self._deckNewLimitSingle, cntFn)
 
     def _resetNew(self):
@@ -306,8 +311,17 @@ did = ? and queue = 0 limit ?)""", did, lim)
             lim = min(self.queueLimit, self._deckNewLimit(did))
             if lim:
                 # fill the queue with the current did
-                self._newQueue = self.col.db.all("""
-select id, due from cards where did = ? and queue = 0 limit ?""", did, lim)
+                self._newQueue = []
+                nq = self.col.db.all("""
+select id, due from cards where did = ? and queue = 0""", did)
+                for c in nq:
+                    if c[1] < self.dayCutoff:
+                        self._newQueue.append(c)
+
+                self._newQueue = self._newQueue[:lim]
+                print nq
+                print self._newQueue
+
                 if self._newQueue:
                     self._newQueue.reverse()
                     return True
@@ -372,9 +386,12 @@ select id, due from cards where did = ? and queue = 0 limit ?""", did, lim)
         if not lim:
             return 0
         lim = min(lim, self.reportLimit)
-        return self.col.db.scalar("""
-select count() from
-(select 1 from cards where did = ? and queue = 0 limit ?)""", did, lim)
+        count = 0
+        a = self.col.db.all("""select due from cards where did = ? and queue = 0""", did)
+        for c in a:
+            if c[0] < self.dayCutoff:
+               count += 1
+        return min(count, lim)
 
     def _deckNewLimitSingle(self, g):
         "Limit for deck without parent limits."
